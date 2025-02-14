@@ -1,10 +1,11 @@
 #include <iostream>
 #include <vector>
+#include "decode.hpp"
 
 using namespace std;
 
 // Function to perform LDPC decoding using unanimous vote message passing
-vector<int> ldpc_decode_unanimity(const vector<vector<int>> &H, vector<int> y, int max_iter = 10) {
+vector<int> ldpc_decode_unanimity(const vector<vector<int>> &H, vector<int> y, int max_iter) {
     int M = H.size();     // Number of check nodes
     int N = H[0].size();  // Number of variable nodes
     vector<int> x = y;    // Initialize decoded codeword
@@ -72,21 +73,27 @@ vector<int> ldpc_decode_unanimity(const vector<vector<int>> &H, vector<int> y, i
     return x;
 }
 
+
+
+
+
+
+
 // Example usage
-int main() {
-    vector<vector<int>> H = {
-        {1, 1, 0, 1, 0, 0}, 
-        {0, 1, 1, 0, 1, 0}, 
-        {1, 0, 1, 0, 0, 1}
-    };
+// int main() {
+//     vector<vector<int>> H = {
+//         {1, 1, 0, 1, 0, 0}, 
+//         {0, 1, 1, 0, 1, 0}, 
+//         {1, 0, 1, 0, 0, 1}
+//     };
 
-    vector<int> y = {1, 0, 1, 1, 0, 1};  // Received noisy codeword
+//     vector<int> y = {1, 0, 1, 1, 0, 1};  // Received noisy codeword
 
-    vector<int> decoded = ldpc_decode_unanimity(H, y);
+//     vector<int> decoded = ldpc_decode_unanimity(H, y);
     
-    cout << "Decoded Codeword: ";
-    for (int bit : decoded) cout << bit << " ";
-    cout << endl;
+//     cout << "Decoded Codeword: ";
+//     for (int bit : decoded) cout << bit << " ";
+//     cout << endl;
 
-    return 0;
-}
+//     return 0;
+// }
