@@ -1,5 +1,6 @@
 #ifndef __MATRIX_H__
 #define __MATRIX_H__
+
 #define _NCOLS 1600
 #define _NROWS 1200
 /* # Matrix 1200 x 1600 Weights rows: 4-4 cols: 3-3 */

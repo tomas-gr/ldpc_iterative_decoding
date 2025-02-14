@@ -3,6 +3,7 @@
 #include <iostream>
 #include "decode.hpp"
 #include "matrix.hpp"
+#include "H6.h"
 using namespace std;
 
 
@@ -70,36 +71,24 @@ int main(int argc, char* argv[]) {
 
     // std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms] (" << std::chrono::duration_cast<std::chrono::seconds>(end - begin).count() << " [s])" << std::endl;
 
-    // Probar un ejemplo de producto de matrices
-    std::vector<std::vector<unsigned char>> H;
-    std::vector<std::vector<unsigned char>> y2;
-    std::vector<unsigned char> x;
-    std::vector<unsigned char> y;
 
-    inicializarMatriz(H, 2, 6);
-    inicializarVector(x, 6);
-    inicializarVector(y, 2);
-    inicializarMatriz(y2, 2, 6);
+    std::vector<std::vector<unsigned char>> H_test;
+    std::vector<std::vector<unsigned char>> VNCon;
+    std::vector<std::vector<unsigned char>> CNCon;
+    
 
-    H[0] = {1, 1, 0, 1, 0, 0};
-    H[1] = {0, 1, 1, 0, 1, 0};
+    inicializarMatriz(VNCon,6,1);
+    inicializarMatriz(CNCon,3,2);
+    inicializarMatriz(H_test,3,6);
+    H_test[0] = {1,1,0,0,0,0};
+    H_test[1] = {0,0,1,1,0,0};
+    H_test[2] = {0,0,0,0,1,1};
+    // VNConnections(H_test,VNCon);
+    CNConnections(H_test,CNCon);
 
-    x = {1, 0, 1, 1, 0, 1};
-
-    productoMatriz(H, x, y);
-    ANDMatriz(H, x, y2);
-
-    cout << "Resultado del producto de matrices: ";
-    for (unsigned char bit : y) cout << (int)bit << " ";
-    cout << endl;
+    // imprimirMatriz(VNCon);
+    imprimirMatriz(CNCon);
 
 
-    cout << "Resultado del AND de matrices: " << endl;
-    for (size_t i = 0; i < y2.size(); ++i) {
-        for (size_t j = 0; j < y2[0].size(); ++j) {
-            cout << (int)y2[i][j] << " ";
-        }
-        cout << endl;
-    }
     return 0;
 }
