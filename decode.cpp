@@ -2,6 +2,7 @@
 #include <vector>
 #include <map>
 #include "decode.hpp"
+#include "matrix.hpp"
 
 using namespace std;
 
@@ -117,8 +118,51 @@ void CNConnections(const vector<vector<unsigned char>> &H, vector<vector<unsigne
     }
 }
 
-vector<int> ldpc_decode_unanimity(const vector<vector<int>> &H, vector<int> y, int max_iter){
-    return vector<int>();
+vector<unsigned char> ldpc_decode_unanimity(const vector<vector<unsigned char>> &H, vector<unsigned char> y, int max_iter){
+    std::vector<unsigned char> sindrome;
 
+    initializeVector(sindrome, y.size());
+
+    /* Calculamos el síndrome y vemos si es nulo */
+    productMatrix(H, y, sindrome);
+
+    if (VectorIsNull(sindrome)){
+        return y;  // AGREGAR BOOLEANO SI FUE EXITOSO
+    }
+    else{
+        int N, M, current_iter=0;
+
+        N = H.size();
+        M = H[0].size();
+        
+        std::vector<unsigned char> c;
+        initializeVector(c, y.size());
+        c = y;  /*¿Se puede saltear el paso de initialize y poner solo esto?*/
+
+        std::vector<std::vector<unsigned char>> VNCon;
+        std::vector<std::vector<unsigned char>> CNCon;
+        std::vector<std::vector<unsigned char>> R;
+        initializeMatrix(R, N, M);
+
+        /* Vemos dónde están los 1s de H */
+        VNConnections(H, VNCon);
+        CNConnections(H, CNCon);
+
+        /* Calculamos el primer mensaje de los VN a CN */
+        ANDMatrix(H, y, R);
+
+        while ((!VectorIsNull(sindrome)) && (current_iter<max_iter)){
+            /* Calculamos el mensaje de C->V y la respuesta de los VN */
+            VCmessage(VNCon, CNCon, R, c, sindrome);
+
+            /* Calculamos nuevamente el síndrome */
+            syndromeMatrix(H, R, sindrome);
+
+            current_iter++;
+        };
+
+
+        return c; // AGREGAR BOOLEANO SI FUE EXITOSO
+    };
 }
 

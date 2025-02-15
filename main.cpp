@@ -117,6 +117,7 @@ int main(int argc, char* argv[]) {
     printVector(message);
     std::cout << std::endl;
 
+    /* Le puse unos const a la definición en matrix.cpp y se rompió esto :( */
     ANDMatrix(H_test, message, R_test);
     productMatrix(H_test, decod, syn);
 
