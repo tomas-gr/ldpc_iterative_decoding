@@ -34,4 +34,6 @@ void VNConnections(const vector<vector<unsigned char>> &H, vector<vector<unsigne
  */
 void CNConnections(const vector<vector<unsigned char>> &H, vector<vector<unsigned char>> &CNCon);
 
-vector<unsigned char> ldpc_decode_unanimity(const vector<vector<unsigned char>> &H, vector<unsigned char> y, int max_iter = 10);
+tuple<vector<unsigned char>,bool> ldpc_decode_unanimity(const vector<vector<unsigned char>> &H, vector<unsigned char> y, int max_iter);
+
+int corregir_archivo(const std::string_view inputFileName, const std::string_view outputFileName,vector<vector<unsigned char>> ParityCheck, int max_iter);

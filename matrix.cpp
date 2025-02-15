@@ -3,32 +3,33 @@
 #include "H6.h"
 #include <iostream>
 
+using namespace std;
 
-void initializeMatrix(std::vector<std::vector<unsigned char>> &matriz, size_t rows, size_t cols) {
-    matriz.resize(rows, std::vector<unsigned char>(cols, 0)); // Resize and initialize with 0
+
+void initializeMatrix(vector<vector<unsigned char>> &matriz, size_t rows, size_t cols) {
+    matriz.resize(rows, vector<unsigned char>(cols, 0)); // Resize and initialize with 0
 }
 
-void initializeVector(std::vector<unsigned char> &vector, size_t cols){
+void initializeVector(vector<unsigned char> &vector, size_t cols){
     vector.resize(cols, 0); // Resize and initialize with 0
 }
 
-// std::vector<std::vector<unsigned char>> leerMatriz() {
-//     std::vector<std::vector<unsigned char>> vecH(_NROWS, std::vector<unsigned char>(_NCOLS));
+vector<vector<unsigned char>> leerMatriz(unsigned char matriz[_NROWS][_NCOLS]){
 
-//     for (size_t i = 0; i < _NROWS; ++i) {
-//         for (size_t j = 0; j < _NCOLS; ++j) {
-//             vecH[i][j] = H[i][j];  // Copy each element
-//         }
-//     }
+    vector<vector<unsigned char>> vec(1200, vector<unsigned char>(1600, 0));
+    for (int i =0; i<1200; i++){
+        for (int j=0; j<1600; j++){
+            vec[i][j] = matriz[i][j];
+        }
+    }
+    return vec;
+}
 
-//     return vecH;
-// }
-
-void productMatrix(const std::vector<std::vector<unsigned char>> &H, std::vector<unsigned char> &x, std::vector<unsigned char> &y) {
+void productMatrix(const vector<vector<unsigned char>> &H, vector<unsigned char> &x, vector<unsigned char> &y) {
     size_t N = H.size();     // Numero de filas
     size_t M = H[0].size();  // Numero de columnas
 
-    std::vector<unsigned char> res(N, 0); // Inicializar vector resultado
+    vector<unsigned char> res(N, 0); // Inicializar vector resultado
 
     for (size_t i = 0; i < N; ++i) {
         for (size_t j = 0; j < M; ++j) {
@@ -38,11 +39,11 @@ void productMatrix(const std::vector<std::vector<unsigned char>> &H, std::vector
     }
 }
 
-void ANDMatrix(const std::vector<std::vector<unsigned char>> &H, std::vector<unsigned char> &x, std::vector<std::vector<unsigned char>> &y) {
+void ANDMatrix(const vector<vector<unsigned char>> &H, vector<unsigned char> &x, vector<vector<unsigned char>> &y) {
     size_t N = H.size();     // Numero de filas
     size_t M = H[0].size();  // Numero de columnas
 
-    std::vector<unsigned char> res(N, 0); // Inicializar vector resultado
+    vector<unsigned char> res(N, 0); // Inicializar vector resultado
 
     for (size_t i = 0; i < N; ++i) {
         for (size_t j = 0; j < M; ++j) {
@@ -51,7 +52,7 @@ void ANDMatrix(const std::vector<std::vector<unsigned char>> &H, std::vector<uns
     }
 }
 
-bool VectorIsNull(std::vector<unsigned char> &vector){
+bool VectorIsNull(vector<unsigned char> &vector){
     bool is_null = true;
     int i=0;
     while (is_null && i < vector.size()){
@@ -61,7 +62,7 @@ bool VectorIsNull(std::vector<unsigned char> &vector){
     return is_null;
 }
 
-void syndromeMatrix(const std::vector<std::vector<unsigned char>> &H, std::vector<std::vector<unsigned char>> &R, std::vector<unsigned char> &s) {
+void syndromeMatrix(const vector<vector<unsigned char>> &H, vector<vector<unsigned char>> &R, vector<unsigned char> &s) {
     int N = H.size();     // Numero de filas
     int M = H[0].size();  // Numero de columnas
 
@@ -74,18 +75,18 @@ void syndromeMatrix(const std::vector<std::vector<unsigned char>> &H, std::vecto
     }
 }
 
-void printMatrix(std::vector<std::vector<unsigned char>> &matriz){
+void printMatrix(vector<vector<unsigned char>> &matriz){
     for (int i=0; i<matriz.size(); i++){
         for (int j=0; j<matriz[i].size(); j++){
-            std::cout << (int)matriz[i][j] << " ";
+            cout << (int)matriz[i][j] << " ";
         }
-        std::cout << std::endl;
+        cout << endl;
     }
 }
 
-void printVector(std::vector<unsigned char> &vector){
+void printVector(vector<unsigned char> &vector){
     for (int i=0; i<vector.size(); i++){
-        std::cout << (int)vector[i] << " ";
+        cout << (int)vector[i] << " ";
     }
-    std::cout << std::endl;
+    cout << endl;
 }

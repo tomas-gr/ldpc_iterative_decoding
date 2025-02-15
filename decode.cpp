@@ -1,6 +1,8 @@
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <map>
+#include <bitset>
 #include "decode.hpp"
 #include "matrix.hpp"
 
@@ -70,6 +72,15 @@ void VCmessage(const vector<vector<unsigned char>> &VNCon, const vector<vector<u
         else if (one_counter==k)
             c[j] = 1;
 
+// Despues vi que estaba hecho más abajo esto.
+        else if (one_counter==1){
+            c[j] = (first_one == j) ? 0 : 1;
+            }
+        else if (one_counter==k-1){
+            c[j] = (first_zero == j) ? 1 : 0; 
+        }
+///////////////////////////////////////////////
+
         /* Mandamos la palabra decodificada */                
         for (int i=0; i<k; i++)
             R[VNCon[j][i]][j] = c[j];
@@ -118,7 +129,7 @@ void CNConnections(const vector<vector<unsigned char>> &H, vector<vector<unsigne
     }
 }
 
-vector<unsigned char> ldpc_decode_unanimity(const vector<vector<unsigned char>> &H, vector<unsigned char> y, int max_iter){
+tuple<vector<unsigned char>,bool> ldpc_decode_unanimity(const vector<vector<unsigned char>> &H, vector<unsigned char> y, int max_iter){
     std::vector<unsigned char> sindrome;
 
     initializeVector(sindrome, y.size());
@@ -127,7 +138,7 @@ vector<unsigned char> ldpc_decode_unanimity(const vector<vector<unsigned char>> 
     productMatrix(H, y, sindrome);
 
     if (VectorIsNull(sindrome)){
-        return y;  // AGREGAR BOOLEANO SI FUE EXITOSO
+        return make_tuple(y,true);
     }
     else{
         int N, M, current_iter=0;
@@ -135,9 +146,7 @@ vector<unsigned char> ldpc_decode_unanimity(const vector<vector<unsigned char>> 
         N = H.size();
         M = H[0].size();
         
-        std::vector<unsigned char> c;
-        initializeVector(c, y.size());
-        c = y;  /*¿Se puede saltear el paso de initialize y poner solo esto?*/
+        vector<unsigned char> c(y);
 
         std::vector<std::vector<unsigned char>> VNCon;
         std::vector<std::vector<unsigned char>> CNCon;
@@ -162,7 +171,65 @@ vector<unsigned char> ldpc_decode_unanimity(const vector<vector<unsigned char>> 
         };
 
 
-        return c; // AGREGAR BOOLEANO SI FUE EXITOSO
+        return make_tuple(c,VectorIsNull(sindrome));
     };
 }
 
+int corregir_archivo(const std::string_view inputFileName, const std::string_view outputFileName,vector<vector<unsigned char>> ParityCheck, int max_iter){
+    int j = 3,k=4,n=1600,m=400,r=1200;
+    
+    // Abrir archivos binarios
+    std::ifstream inputFile(inputFileName.data(), std::ios::binary);
+    std::ofstream outputFile(outputFileName.data(), std::ios::binary);
+
+    if (!inputFile.is_open()) {
+        std::cerr << "Error: Could not open input file." << std::endl;
+        return 0;
+    }
+
+    if (!outputFile.is_open()) {
+        std::cerr << "Error: Could not open output file." << std::endl;
+        return 0;
+    }
+
+    // Cargar n bytes en buffer de caracteres y pasar a vector de enteros
+    std::vector<char> buffer(n);
+    std::vector<unsigned char> bloque(n);
+    std::vector<char> bloque_deco(n-r,0);
+
+    int total = 0;
+    int errores = 0;
+    int corregidos = 0;
+
+    while(inputFile.read(buffer.data(),n)){
+        std::streamsize bytes_read = inputFile.gcount();
+        for (int i = 0; i < bytes_read; ++i){
+            bloque[i] = static_cast<unsigned char>(buffer[i]);
+        }
+
+        /*------------------------------------------------------------------------*/
+            // DECODIFICACION
+
+        tuple<vector<unsigned char>,bool> decod = ldpc_decode_unanimity(ParityCheck, bloque, max_iter);
+        
+        if (get<1>(decod)){
+            corregidos++;
+        }
+        else{
+            errores++;
+        }
+        /*-------------------------------------------------------------------------*/
+    
+        // Escribir la palabra decodificada en archivo de salida
+        outputFile.write(bloque_deco.data(), bytes_read);
+    }
+    std::cout << "Total de palabras procesadas: " << total << std::endl;
+    std::cout << "Cantidad de errores: " << errores << std::endl << std::endl;
+    std::cout << "Cantidad de correcciones: " << corregidos << std::endl;
+    std::cout << "Tasa de corrección: " << (float)corregidos/(float)total << std::endl;
+
+    outputFile.close();
+    inputFile.close();
+
+    return (1);
+}
