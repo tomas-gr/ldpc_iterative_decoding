@@ -2,9 +2,9 @@
 #include <unistd.h>
 #include <iostream>
 #include <fstream>
-#include "decode.hpp"
-#include "matrix.hpp"
-#include "H6.h"
+#include "src/decode.hpp"
+#include "src/matrix.hpp"
+#include "src/H6.c"
 using namespace std;
 
 
@@ -15,18 +15,18 @@ int main(int argc, char* argv[]) {
     int m = 400;
     int n = 1600;
     int r = 1200;
-    int max_iter;
+    int max_iter = 1;
 
     string file_in;
     string file_out;
     ifstream fin;
 
-    unsigned char H[_NROWS][_NCOLS];
+    // unsigned char H[_NROWS][_NCOLS];
 
     vector<vector<unsigned char>> parityCheck = leerMatriz(H);
 
     int opt;
-    while ((opt = getopt(argc, argv, "i:o:n")) != -1) {
+    while ((opt = getopt(argc, argv, "i:o:n:")) != -1) {
         switch (opt) {
         case 'i':
             file_in = optarg;
@@ -41,7 +41,11 @@ int main(int argc, char* argv[]) {
             file_out = optarg;
             break;
         case 'n':
-            max_iter = atoi(optarg);
+            max_iter = stoi(optarg);
+            if (max_iter <= 0 || max_iter > 500) {
+                cerr << "Error: max_iter debe ser un entero positivo menor a 500.\n";
+                return 1;
+            }
             break;
         default:
             cerr << "Uso correcto: ldpc_decode -i <file_in> -o <file_out> -n <max_iter>\n";
