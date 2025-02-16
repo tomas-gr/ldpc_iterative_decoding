@@ -5,174 +5,91 @@
 #include <bitset>
 #include <tuple>
 #include <chrono>
+#include <algorithm>
+#include <unordered_map>
 #include "decode.hpp"
 #include "matrix.hpp"
 
 using namespace std;
 using namespace std::chrono;
 
-void VCmessage(const vector<vector<unsigned char>> &VNCon, const vector<vector<unsigned char>> &CNCon, vector<vector<unsigned char>> &R, vector<unsigned char> &c, vector<unsigned char> &sindrome){
-    int N = CNCon.size();
-    int M = VNCon.size();
-    int k = VNCon[0].size();
-    int one_counter, first_one, first_zero;
-    bool found_one, found_zero;
-   
-    /* Respuesta de los CN */
 
-    /* Recorremos s y trabajamos con las filas con valor 1*/
-    for (int i=0; i<sindrome.size(); i++){
-         if (sindrome[i] == 1){ 
+bool chequeoParidad(const MatrizDispersa &H, const vector<unsigned char> c_estimado){
+    size_t r = H.size();     // Numero de filas
+    size_t n = H[0].size();  // Numero de columnas
+    int paridad;
 
-             /* Invertimos los valores de la fila de R*/
-             /* (solamente cambiamos los valores de las posiciones en donde hay 1s en H) */
-             for (int j=0; j<k; j++)
-                 R[i][CNCon[i][j]] ^= 0x01;
-
-         }
+    for (size_t i = 0; i < r; ++i) {
+        paridad = 0;
+        for (size_t j = 0; j < n; ++j) {
+            paridad ^= H[i][j] & c_estimado[j];
+        }
+        if (paridad != 0) return false;
     }
+    return true;
+}
+
+tuple<vector<unsigned char>, bool> ldpc_decode_unanimity(const MatrizDispersa &H_rows,  // Nonzero indices per check node
+                                                         const MatrizDispersa &H_cols,  // Nonzero indices per variable node
+                                                         vector<unsigned char> y,
+                                                         int max_iter) {
+    static bool first_success = true;
+    static bool first_fail = true;
     
-    /* debug */
-    // std::cout << "R_syndrome" <<std::endl;
-    // printMatrix(R);
-    // std::cout << std::endl;
+    int r = H_rows.size();  // Number of check nodes
+    int n = H_cols.size();  // Number of variable nodes
+    vector<unsigned char> c_estimado = y;
 
-    /* Respuesta de los VN */
+    for (int iter = 0; iter < max_iter; iter++) {
 
-    /* Procesamos cada VN por separado */
-    for (int j=0; j<M; j++){
-        one_counter = 0;
-        found_one = false;
-        found_zero = false;
+        /* Step 1: Check-to-Variable Messages */        
+        vector<unordered_map<int, unsigned char>> check_a_var(r);
 
-        /* debug */
-        first_zero = N;
-        first_one = N;
-
-        /* Contamos la cantidad de 1s que recibió cada VN */
-        for (int i=0; i<k; i++){
-            if ((!found_zero) && (R[VNCon[j][i]][j]==0)){
-                first_zero = i;
-                found_zero = true;
+        for (int i = 0; i < r; i++) {
+            int parity = 0;
+            for (int v : H_rows[i]) {
+                parity ^= c_estimado[v];
             }
-            else if ((!found_one) && (R[VNCon[j][i]][j]==1)){
-                first_one = i;
-                found_one = true;
-            }
-            
-            one_counter += R[VNCon[j][i]][j];
-        };
-
-        /* debug */
-        // std::cout << "j = " << j << "   one_counter=" << one_counter << "   first_one=" << first_one << "   first_zero=" << first_zero <<std::endl <<std::endl;
-
-        /* Accionamos según la cantidad de 1s contados */
-        
-        /* Si hay unanimidad cambiamos la palabra 'decodificada' */
-        if (one_counter==0)
-            c[j] = 0;
-        else if (one_counter==k)
-            c[j] = 1;
-
-// Despues vi que estaba hecho más abajo esto./////////
-        // else if (one_counter==1){
-        //     c[j] = (first_one == j) ? 0 : 1;
-        //     }
-        // else if (one_counter==k-1){
-        //     c[j] = (first_zero == j) ? 1 : 0; 
-        // }
-///////////////////////////////////////////////////////
-
-        /* Mandamos la palabra decodificada */                
-        for (int i=0; i<k; i++)
-            R[VNCon[j][i]][j] = c[j];
-        
-        /* Ajustamos cuando no hay unanimidad */
-        if (one_counter==1)
-            R[VNCon[j][first_one]][j] = 0;
-            
-        if (one_counter==k-1)
-            R[VNCon[j][first_zero]][j] = 1;
-    }
-
-    /* debug */
-    // std::cout << "DECOD" <<std::endl;
-    // printVector(c);
-    // std::cout << std::endl;
-}
-
-void VNConnections(const vector<vector<unsigned char>> &H, vector<vector<unsigned char>> &VNCon){
-    int N = H.size();
-    int M = H[0].size();
-    int k = 0;
-
-    for (int i=0; i<M; i++){
-        k = 0;
-        for (int j=0; j<N; j++){
-            if (H[j][i] == 1){
-                VNCon[i][k++] = j;
+            for (int v : H_rows[i]) {
+                check_a_var[i][v] = parity ^ c_estimado[v];  // Exclude self
             }
         }
-    }
-}
 
-void CNConnections(const vector<vector<unsigned char>> &H, vector<vector<unsigned char>> &CNCon){
-    int N = H.size();
-    int M = H[0].size();
-    int k = 0;
 
-    for (int i=0; i<N; i++){
-        k = 0;
-        for (int j=0; j<M; j++){
-            if (H[i][j] == 1){
-                CNCon[i][k++] = j;
+        /* Step 2: Variable-to-Check Messages */
+        vector<unsigned char> c_estimado_new = c_estimado;
+
+        for (int j = 0; j < n; j++) {
+            vector<unsigned char> messages;
+            for (int i : H_cols[j]) {
+                messages.push_back(check_a_var[i][j]);
+            }
+
+            // Apply Unanimity Rule
+            if (all_of(messages.begin(), messages.end(), [](int x) { return x == 1; })) {
+                c_estimado_new[j] = 1;
+            } else if (all_of(messages.begin(), messages.end(), [](int x) { return x == 0; })) {
+                c_estimado_new[j] = 0;
             }
         }
+
+        /* Step 3: Parity Check */        
+        if (chequeoParidad(H_rows, c_estimado_new)) {
+            return make_tuple(c_estimado_new, true);
+        }
+
+        c_estimado = c_estimado_new;
     }
+
+    return make_tuple(y, false);
 }
 
-tuple<vector<unsigned char>,bool> ldpc_decode_unanimity(const vector<vector<unsigned char>> &H,vector<vector<unsigned char>> VNCon,vector<vector<unsigned char>> CNCon, vector<unsigned char> y, int max_iter){
+int corregir_archivo(const std::string_view inputFileName,
+                    const std::string_view outputFileName,
+                    MatrizDispersa H_rows,
+                    MatrizDispersa H_cols, 
+                    int max_iter) {
 
-    std::vector<unsigned char> sindrome(y.size(),0);
-
-    /* Calculamos el síndrome y vemos si es nulo */
-    productMatrix(H, y, sindrome);
-
-    if (VectorIsNull(sindrome)){
-        return make_tuple(y,true);
-    }
-    else{
-        int N, M, current_iter=0;
-
-        N = H.size();
-        M = H[0].size();
-        
-        vector<unsigned char> c(y);
-
-        vector<vector<unsigned char>> R;
-        initializeMatrix(R, N, M);
-
-
-        /* Calculamos el primer mensaje de los VN a CN */
-        ANDMatrix(H, y, R);
-
-        while ((!VectorIsNull(sindrome)) && (current_iter < max_iter)){
-            /* Calculamos el mensaje de C->V y la respuesta de los VN */
-            VCmessage(VNCon, CNCon, R, c, sindrome);
-
-            /* Calculamos nuevamente el síndrome */
-            syndromeMatrix(H, R, sindrome);
-
-            current_iter++;
-        };
-
-
-        return make_tuple(c,VectorIsNull(sindrome));
-    };
-}
-
-
-int corregir_archivo(const std::string_view inputFileName, const std::string_view outputFileName,vector<vector<unsigned char>> ParityCheck, int max_iter){
     int j = 3,k=4,n=1600,m=400,r=1200;
     
     // Abrir archivos binarios
@@ -198,16 +115,6 @@ int corregir_archivo(const std::string_view inputFileName, const std::string_vie
     int errores = 0;
     int corregidos = 0;
 
-    std::vector<std::vector<unsigned char>> VNCon;
-    std::vector<std::vector<unsigned char>> CNCon;
-
-    initializeMatrix(VNCon, ParityCheck[0].size(), 4);
-    initializeMatrix(CNCon, ParityCheck.size(), 4);
-
-    /* Vemos dónde están los 1s de H */
-    VNConnections(ParityCheck, VNCon);
-    CNConnections(ParityCheck, CNCon);
-
     while(inputFile.read(buffer.data(),n)){
         std::streamsize bytes_read = inputFile.gcount();
         for (int i = 0; i < bytes_read; ++i){
@@ -216,9 +123,7 @@ int corregir_archivo(const std::string_view inputFileName, const std::string_vie
 
         /*------------------------------------------------------------------------*/
             // DECODIFICACION
-
-        // tuple<vector<unsigned char>,bool> decod = make_tuple(bloque,false);
-        tuple<vector<unsigned char>,bool> decod = ldpc_decode_unanimity(ParityCheck,VNCon,CNCon, bloque, max_iter);
+        tuple<vector<unsigned char>,bool> decod = ldpc_decode_unanimity(H_rows,H_cols,bloque,max_iter);
         if (get<1>(decod)){
             corregidos++;
         }
@@ -226,12 +131,13 @@ int corregir_archivo(const std::string_view inputFileName, const std::string_vie
             errores++;
         }
 
-        // std::cout << "Palabras procesadas: " << ++total << std::endl;
-        // std::cout << "Cantidad de errores: " << errores << std::endl;
-        // std::cout << "Cantidad de correctas: " << corregidos << std::endl << std::endl;
-        // std::cout << "Tasa de error: " << (float)errores/(float)total << std::endl;
-
-
+        // Imprimir cada 1000 palabras procesadas
+        if (++total % 1000 == 0) {
+            std::cout << "Palabras procesadas: " << total << std::endl;
+            std::cout << "Cantidad de errores: " << errores << std::endl;
+            std::cout << "Cantidad de correctas: " << corregidos << std::endl << std::endl;
+            std::cout << "Tasa de error: " << (float)errores/(float)total << std::endl;
+        }
         /*-------------------------------------------------------------------------*/
     
         // Escribir la palabra decodificada en archivo de salida
