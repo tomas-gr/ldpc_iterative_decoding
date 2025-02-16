@@ -25,8 +25,8 @@ void convertirADispersa(const vector<vector<unsigned char>> &H, MatrizDispersa &
 vector<vector<unsigned char>> leerMatriz(const unsigned char matriz[_NROWS][_NCOLS]){
 
     vector<vector<unsigned char>> vec(_NROWS, vector<unsigned char>(_NCOLS, 0));
-    for (int i =0; i<1200; i++){
-        for (int j=0; j<1600; j++){
+    for (int i =0; i<_NROWS; i++){
+        for (int j=0; j<_NCOLS; j++){
             vec[i][j] = matriz[i][j];
         }
     }

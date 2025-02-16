@@ -29,20 +29,25 @@ bool chequeoParidad(const MatrizDispersa &H, const vector<unsigned char> c_estim
     return true;
 }
 
-tuple<vector<unsigned char>, bool> ldpc_decode_unanimity(const MatrizDispersa &H_rows,  // Nonzero indices per check node
-                                                         const MatrizDispersa &H_cols,  // Nonzero indices per variable node
+tuple<vector<unsigned char>, bool> ldpc_decode_unanimity(const MatrizDispersa &H_rows,
+                                                         const MatrizDispersa &H_cols,
                                                          vector<unsigned char> y,
                                                          int max_iter) {
     static bool first_success = true;
     static bool first_fail = true;
     
-    int r = H_rows.size();  // Number of check nodes
-    int n = H_cols.size();  // Number of variable nodes
+    int r = H_rows.size();  // Cantidad de nodos de check
+    int n = H_cols.size();  // Cantidad de nodos de variable
     vector<unsigned char> c_estimado = y;
+
+    /* Paso 0: Chequeo de paridad inicial */        
+        if (chequeoParidad(H_rows, c_estimado)) {
+            return make_tuple(c_estimado, true);
+        }
 
     for (int iter = 0; iter < max_iter; iter++) {
 
-        /* Step 1: Check-to-Variable Messages */        
+        /* Paso 1: Mensajes de check a variable */        
         vector<unordered_map<int, unsigned char>> check_a_var(r);
 
         for (int i = 0; i < r; i++) {
@@ -51,12 +56,12 @@ tuple<vector<unsigned char>, bool> ldpc_decode_unanimity(const MatrizDispersa &H
                 parity ^= c_estimado[v];
             }
             for (int v : H_rows[i]) {
-                check_a_var[i][v] = parity ^ c_estimado[v];  // Exclude self
+                check_a_var[i][v] = parity ^ c_estimado[v];
             }
         }
 
 
-        /* Step 2: Variable-to-Check Messages */
+        /* Paso 2: Mensajes de variable a check */
         vector<unsigned char> c_estimado_new = c_estimado;
 
         for (int j = 0; j < n; j++) {
@@ -65,7 +70,7 @@ tuple<vector<unsigned char>, bool> ldpc_decode_unanimity(const MatrizDispersa &H
                 messages.push_back(check_a_var[i][j]);
             }
 
-            // Apply Unanimity Rule
+            // Si hay consenso en los mensajes, se actualiza el valor de la variable
             if (all_of(messages.begin(), messages.end(), [](int x) { return x == 1; })) {
                 c_estimado_new[j] = 1;
             } else if (all_of(messages.begin(), messages.end(), [](int x) { return x == 0; })) {
@@ -73,9 +78,9 @@ tuple<vector<unsigned char>, bool> ldpc_decode_unanimity(const MatrizDispersa &H
             }
         }
 
-        /* Step 3: Parity Check */        
+        /* Paso 3: Parity Check */        
         if (chequeoParidad(H_rows, c_estimado_new)) {
-            return make_tuple(c_estimado_new, true);
+            return make_tuple(vector<unsigned char>(c_estimado_new.begin(), c_estimado_new.begin() + (n - r)), true);
         }
 
         c_estimado = c_estimado_new;
@@ -109,7 +114,7 @@ int corregir_archivo(const std::string_view inputFileName,
     // Cargar n bytes en buffer de caracteres y pasar a vector de enteros
     std::vector<char> buffer(n);
     std::vector<unsigned char> bloque(n);
-    std::vector<char> bloque_deco(n-r,0);
+    std::vector<unsigned char> bloque_deco(n);
 
     int total = 0;
     int errores = 0;
@@ -135,17 +140,20 @@ int corregir_archivo(const std::string_view inputFileName,
         if (++total % 1000 == 0) {
             std::cout << "Palabras procesadas: " << total << std::endl;
             std::cout << "Cantidad de errores: " << errores << std::endl;
-            std::cout << "Cantidad de correctas: " << corregidos << std::endl << std::endl;
-            std::cout << "Tasa de error: " << (float)errores/(float)total << std::endl;
+            std::cout << "Cantidad de correctas: " << corregidos << std::endl;
+            std::cout << "Tasa de error: " << (float)errores/(float)total << std::endl << std::endl;
         }
         /*-------------------------------------------------------------------------*/
     
         // Escribir la palabra decodificada en archivo de salida
-        outputFile.write(bloque_deco.data(), bytes_read);
+        bloque_deco = get<0>(decod);
+        outputFile.write(reinterpret_cast<const char*>(bloque_deco.data()), n);
+
 
     }
-    std::cout << "Total de palabras procesadas: " << total << std::endl;
-    std::cout << "Cantidad de errores: " << errores << std::endl << std::endl;
+    std::cout << "Decodificación finalizada" << std::endl;
+    std::cout << "Palabras procesadas: " << total << std::endl;
+    std::cout << "Cantidad de errores: " << errores << std::endl;
     std::cout << "Cantidad de correcciones: " << corregidos << std::endl;
     std::cout << "Tasa de corrección: " << (float)corregidos/(float)total << std::endl;
 
