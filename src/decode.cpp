@@ -41,9 +41,9 @@ tuple<vector<unsigned char>, bool> ldpc_decode_unanimity(const MatrizDispersa &H
     vector<unsigned char> c_estimado = y;
 
     /* Paso 0: Chequeo de paridad inicial */        
-        if (chequeoParidad(H_rows, c_estimado)) {
-            return make_tuple(c_estimado, true);
-        }
+    if (chequeoParidad(H_rows, c_estimado)) {
+        return make_tuple(c_estimado, true);
+    }
 
     for (int iter = 0; iter < max_iter; iter++) {
 
@@ -94,9 +94,9 @@ int corregir_archivo(const std::string_view inputFileName,
                     MatrizDispersa H_rows,
                     MatrizDispersa H_cols, 
                     int max_iter) {
-
-    int j = 3,k=4,n=1600,m=400,r=1200;
     
+    int n = H_cols.size(); 
+
     // Abrir archivos binarios
     std::ifstream inputFile(inputFileName.data(), std::ios::binary);
     std::ofstream outputFile(outputFileName.data(), std::ios::binary);
@@ -147,7 +147,7 @@ int corregir_archivo(const std::string_view inputFileName,
     
         // Escribir la palabra decodificada en archivo de salida
         bloque_deco = get<0>(decod);
-        outputFile.write(reinterpret_cast<const char*>(bloque_deco.data()), n);
+        outputFile.write(reinterpret_cast<const char*>(bloque_deco.data()),n);
 
 
     }
