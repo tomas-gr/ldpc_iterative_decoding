@@ -18,7 +18,7 @@ logfile="result.log"
 ldpc_Utils/bbchannel -s 314 -p "$p" -Z "$l" testdata.dat >> /dev/null 2>&1
 
 # Decodificación
-./ldpc_decode -i testdata.dat -o testdata_corr.dat -n "$n" >> /dev/null 2>&1
+./ldpc_decode -i testdata.dat -o testdata_corr.dat -n "$n"
 
 # Diferencia
 ldpc_Utils/diffblock -m 8 -z -n 1600 testdata_corr.dat >> "$logfile" 2>&1

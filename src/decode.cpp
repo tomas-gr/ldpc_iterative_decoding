@@ -14,15 +14,15 @@ using namespace std;
 using namespace std::chrono;
 
 
-bool chequeoParidad(const MatrizDispersa &H, const vector<unsigned char> c_estimado){
-    size_t r = H.size();     // Numero de filas
-    size_t n = H[0].size();  // Numero de columnas
-    int paridad;
 
-    for (size_t i = 0; i < r; ++i) {
+bool chequeoParidad(const MatrizDispersa &H, const vector<unsigned char> c_estimado){
+    size_t r = H.size();     // Numero de nodos check
+    size_t n = H[0].size();  // Numero de nodos variable conectados a check
+    int paridad;
+    for (size_t i = 0; i < r; i++) {
         paridad = 0;
-        for (size_t j = 0; j < n; ++j) {
-            paridad ^= H[i][j] & c_estimado[j];
+        for (size_t j = 0; j < n; j++) {
+            paridad ^= c_estimado[H[i][j]];
         }
         if (paridad != 0) return false;
     }
@@ -33,59 +33,96 @@ tuple<vector<unsigned char>, bool> ldpc_decode_unanimity(const MatrizDispersa &H
                                                          const MatrizDispersa &H_cols,
                                                          vector<unsigned char> y,
                                                          int max_iter) {
-    static bool first_success = true;
-    static bool first_fail = true;
+    // static bool first_success = true;
+    // static bool first_fail = true;
     
     int r = H_rows.size();  // Cantidad de nodos de check
     int n = H_cols.size();  // Cantidad de nodos de variable
-    vector<unsigned char> c_estimado = y;
 
-    /* Paso 0: Chequeo de paridad inicial */        
-    if (chequeoParidad(H_rows, c_estimado)) {
-        return make_tuple(c_estimado, true);
+    /* Chequeo de paridad inicial */        
+    if (chequeoParidad(H_rows, y)) {
+        return make_tuple(y, true);
+    }
+
+
+    /* Paso 0: Mensaje inicial de variable a check */
+    vector<unsigned char> c_estimado = y;
+    vector<unordered_map<int,unsigned char>> mensaje_vc(n);
+    vector<unordered_map<int, unsigned char>> mensaje_cv(r);
+
+    for (int j = 0; j < n; j++) {
+        for (int i : H_cols[j]) {
+            // Para cada nodo de variable j, se envía el valor de y[j] a los nodos de check conectados a j
+            mensaje_vc[j].insert({i, c_estimado[j]});
+        }
     }
 
     for (int iter = 0; iter < max_iter; iter++) {
+        /* Paso 1: Mensajes de check a variable */    
 
-        /* Paso 1: Mensajes de check a variable */        
-        vector<unordered_map<int, unsigned char>> check_a_var(r);
 
+        // Para cada nodo de check
         for (int i = 0; i < r; i++) {
-            int parity = 0;
-            for (int v : H_rows[i]) {
-                parity ^= c_estimado[v];
-            }
-            for (int v : H_rows[i]) {
-                check_a_var[i][v] = parity ^ c_estimado[v];
+            // Para cada nodo de variable conectado a i
+            for (int j : H_rows[i]) {
+                unsigned char message = 0;
+                for (auto m : mensaje_vc[i]) {
+                    // Suma modulo dos (xor) de los mensajes recibidos por i, excepto el mensaje enviado por j
+                    if (m.first != j) {
+                        message ^= m.second;
+                    }
+                    // Se almacena el mensaje recibido por i
+                    mensaje_vc[j].insert({i, message});
+                }
+                mensaje_cv[i].clear();
             }
         }
+
+
+        // Para cada nodo de variable    
+        for (int j = 0; j < n; j++) {
+            unsigned char message = 0;
+            for (int i : H_cols[j]) {
+                // Para cada nodo de check conectado a j
+                for (auto m : mensaje_vc[i]) {
+                    // Suma modulo dos (xor) de los mensajes recibidos por i, excepto el mensaje enviado por j
+                    if (m.first != j) {
+                        message ^= m.second;
+                    }
+                    // Se almacena el mensaje recibido por j
+                    mensaje_cv[i].insert({j, message});
+                }
+                mensaje_vc[i].clear();
+            }
+        }
+
 
 
         /* Paso 2: Mensajes de variable a check */
-        vector<unsigned char> c_estimado_new = c_estimado;
 
-        for (int j = 0; j < n; j++) {
-            vector<unsigned char> messages;
-            for (int i : H_cols[j]) {
-                messages.push_back(check_a_var[i][j]);
-            }
+        // Para cada nodo de check
+        for (int i = 0; i < r; i++) {
+            // Si todos los mensajes recibidos por i son iguales, se envía ese mensaje a los nodos de variable conectados a i
+            if (all_of(mensaje_cv[i].begin(), mensaje_cv[i].end(), [](const auto &m) { return m.second == 1; })) {
+                for (int j : H_rows[i]) {
+                    mensaje_vc[j].insert({i, 1});
+                }
+                c_estimado[i] = 1;
 
-            // Si hay consenso en los mensajes, se actualiza el valor de la variable
-            if (all_of(messages.begin(), messages.end(), [](int x) { return x == 1; })) {
-                c_estimado_new[j] = 1;
-            } else if (all_of(messages.begin(), messages.end(), [](int x) { return x == 0; })) {
-                c_estimado_new[j] = 0;
+            } else if (all_of(mensaje_cv[i].begin(), mensaje_cv[i].end(), [](const auto &m) { return m.second == 0;})) {
+                for (int j : H_rows[i]) {
+                    mensaje_vc[j].insert({i, 0});
+                }
+                c_estimado[i] = 0;
             }
+            mensaje_cv[i].clear();
         }
 
-        /* Paso 3: Parity Check */        
-        if (chequeoParidad(H_rows, c_estimado_new)) {
-            return make_tuple(vector<unsigned char>(c_estimado_new.begin(), c_estimado_new.begin() + (n - r)), true);
+        /* Paso 3: Parity Check */    
+        if (chequeoParidad(H_rows, c_estimado)) {
+            return make_tuple(vector<unsigned char>(c_estimado.begin(), c_estimado.begin() + n), true);
         }
-
-        c_estimado = c_estimado_new;
     }
-
     return make_tuple(y, false);
 }
 
@@ -136,12 +173,13 @@ int corregir_archivo(const std::string_view inputFileName,
             errores++;
         }
 
+
         // Imprimir cada 1000 palabras procesadas
-        if (++total % 1000 == 0) {
+        if (++total % 10 == 0) {
             std::cout << "Palabras procesadas: " << total << std::endl;
             std::cout << "Cantidad de errores: " << errores << std::endl;
             std::cout << "Cantidad de correctas: " << corregidos << std::endl;
-            std::cout << "Tasa de error: " << (float)errores/(float)total << std::endl << std::endl;
+            // std::cout << "Tasa de error: " << (float)errores/(float)total << std::endl << std::endl;
         }
         /*-------------------------------------------------------------------------*/
     
@@ -155,7 +193,7 @@ int corregir_archivo(const std::string_view inputFileName,
     std::cout << "Palabras procesadas: " << total << std::endl;
     std::cout << "Cantidad de errores: " << errores << std::endl;
     std::cout << "Cantidad de correcciones: " << corregidos << std::endl;
-    std::cout << "Tasa de corrección: " << (float)corregidos/(float)total << std::endl;
+    // std::cout << "Tasa de corrección: " << (float)corregidos/(float)total << std::endl;
 
     outputFile.close();
     inputFile.close();
