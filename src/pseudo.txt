@@ -1,0 +1,19 @@
+Pasar matriz H a dispersa:
+    H_rows = nodos de variable conectados a cada nodo de check
+    H_cols = nodos de check conectados a cada nodo de variable
+
+Paso 0: Inicializar mensajes de variable a check
+    Matriz mensajes_vc: Cada fila representa un nodo de check y en las columnas el mensaje de un nodo de variable adyacente
+
+    Para cada nodo de check i:
+        k = 0
+        Para cada nodo de variable j conectado al check i:   
+            mensajes_vc[i][k] = y[j]
+            k++
+
+Paso 1: Mensajes de check a variable
+    Matriz mensajes_cv: Cada fila representa un nodo de variable y las columnas el mensaje de los nodos de check adyacentes
+    
+    Para cada nodo de variable j:
+        k = 0
+        mensajes_cv[j][k] = suma(mensajes_vc[][])

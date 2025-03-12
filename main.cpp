@@ -2,6 +2,8 @@
 #include <unistd.h>
 #include <iostream>
 #include <fstream>
+#include <unordered_map>
+#include <vector>
 #include "src/decode.hpp"
 #include "src/matrix.hpp"
 #include "src/H6.c"
@@ -63,6 +65,29 @@ int main(int argc, char* argv[]) {
         cerr << "Uso correcto: ldpc_decode -i <file_in> -o <file_out> -n <max_iter>\n";
         return 1;
     }
+
+
+    // std::unordered_map<int, unsigned char> mensaje;
+    // mensaje[1] = 1;
+    // mensaje[2] = 0;
+    // mensaje[3] = 1;
+    // mensaje[4] = 0;
+
+
+    // // Imprimir mensaje
+    // std::cout << "Mensaje: ";
+    // for (auto m : mensaje) {
+    //     std::cout << "Mensaje de check " << m.first << " : " << static_cast<unsigned>(m.second) << std::endl;
+    // }
+
+    // // mensaje.erase(4);
+    // mensaje[4] = 1;
+    // mensaje[3] = 0;
+
+    // std::cout << "Mensaje: ";
+    // for (auto m : mensaje) {
+    //     std::cout << "Mensaje de check " << m.first << " : " << static_cast<unsigned>(m.second) << std::endl;
+    // }
 
 
 
