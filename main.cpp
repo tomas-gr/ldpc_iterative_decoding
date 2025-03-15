@@ -66,38 +66,13 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-
-    // std::unordered_map<int, unsigned char> mensaje;
-    // mensaje[1] = 1;
-    // mensaje[2] = 0;
-    // mensaje[3] = 1;
-    // mensaje[4] = 0;
-
-
-    // // Imprimir mensaje
-    // std::cout << "Mensaje: ";
-    // for (auto m : mensaje) {
-    //     std::cout << "Mensaje de check " << m.first << " : " << static_cast<unsigned>(m.second) << std::endl;
-    // }
-
-    // // mensaje.erase(4);
-    // mensaje[4] = 1;
-    // mensaje[3] = 0;
-
-    // std::cout << "Mensaje: ";
-    // for (auto m : mensaje) {
-    //     std::cout << "Mensaje de check " << m.first << " : " << static_cast<unsigned>(m.second) << std::endl;
-    // }
-
-
-
     std::cout << std::endl << "Comenzando decodificacion" << std::endl << std::endl;
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     corregir_archivo(file_in,file_out,H_rows,H_cols,max_iter);
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
-    std::cout << "Tiempo de correción del archivo = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms] (" << std::chrono::duration_cast<std::chrono::seconds>(end - begin).count() << " [s])" << std::endl;
+    std::cout << "Tiempo = " << std::chrono::duration_cast<std::chrono::seconds>(end - begin).count() << " [s] " << std::chrono::duration_cast<std::chrono::minutes>(end - begin).count() << " [m]" << std::endl;
 
     return 0;
 }

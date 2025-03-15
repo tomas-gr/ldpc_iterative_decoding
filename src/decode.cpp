@@ -8,6 +8,7 @@
 #include <thread>
 #include <algorithm>
 #include <unordered_map>
+#include <unordered_set>
 #include "decode.hpp"
 #include "matrix.hpp"
 
@@ -29,9 +30,10 @@ bool chequeoParidad(const MatrizDispersa &H_rows, const vector<unsigned char> c_
     return true;
 }
 
+
 tuple<vector<unsigned char>, bool, int> ldpc_decode_unanimity(const MatrizDispersa &H_rows,
                                                          const MatrizDispersa &H_cols,
-                                                         vector<unsigned char> y,
+                                                         const vector<unsigned char> &y,
                                                          int max_iter) {
     
     int r = H_rows.size();  // Cantidad de nodos de check
@@ -39,11 +41,12 @@ tuple<vector<unsigned char>, bool, int> ldpc_decode_unanimity(const MatrizDisper
 
     /* Chequeo de paridad inicial */        
     if (chequeoParidad(H_rows, y)) {
-        return make_tuple(y, true,0);
+        return make_tuple(y, true, -1);
     }
 
     vector<unsigned char> c_estimado = y;
-    vector<unordered_map<int,unsigned char>> mensaje_vc(r);
+    vector<vector<unsigned char>> mensaje_vc(r, vector<unsigned char>(n, 0));
+
     vector<unordered_map<int, unsigned char>> mensaje_cv(n);
 
     /* Paso 0: Mensaje inicial de variable a check */
@@ -56,7 +59,6 @@ tuple<vector<unsigned char>, bool, int> ldpc_decode_unanimity(const MatrizDisper
         }
     }
 
-
     for (int iter = 0; iter < max_iter; ++iter) {
         /* Paso 1: Mensajes de check a variable */    
 
@@ -66,10 +68,10 @@ tuple<vector<unsigned char>, bool, int> ldpc_decode_unanimity(const MatrizDisper
             for (int i : H_cols[j]) {
                 // Recorro mensajes recibidos por check i
                 unsigned char mensaje = 0;
-                for (const auto& m : mensaje_vc[i]) {
+                for (int k : H_rows[i]) {
                     // Suma modulo dos (xor) de los mensajes recibidos por i, excepto el mensaje enviado por j
-                    if (m.first != j) {
-                        mensaje ^= m.second;
+                    if (k != j) {
+                        mensaje ^= mensaje_vc[i][k];
                     }
                 }
                 // Cada nodo de check envía el mensaje a j
@@ -77,23 +79,20 @@ tuple<vector<unsigned char>, bool, int> ldpc_decode_unanimity(const MatrizDisper
             }
         }
 
-        /* Paso 2: Mensajes de variable a check */
-        // Para cada nodo de variable
-        for (int j = 0; j < n; j++) {
-
-            if (all_of(mensaje_cv[j].begin(), mensaje_cv[j].end(), [](const auto &m) { return m.second == 1; })) {
-                
-                for (int i : H_cols[j]) {
+        // Para cada nodo de check
+        for (int i = 0; i < r; i++) {
+            // Para cada nodo de variable conectado a i
+            for (int j : H_rows[i]) {
+                // Si todos los mensajes recibidos por j son iguales, excepto por el mensaje enviado por i
+                if (count_if(mensaje_cv[j].begin(), mensaje_cv[j].end(), [i](const auto &m) { return m.first != i && m.second == 1; }) == mensaje_cv[j].size() - 1) {
+                    // Se envía un mensaje de 1 a i
                     mensaje_vc[i][j] = 1;
-                }
-                c_estimado[j] = 1;
-
-            } else if (all_of(mensaje_cv[j].begin(), mensaje_cv[j].end(), [](const auto &m) { return m.second == 0;})) {
-
-                for (int i : H_cols[j]) {
+                    c_estimado[j] = 1;
+                } else if (count_if(mensaje_cv[j].begin(), mensaje_cv[j].end(), [i](const auto &m) { return m.first != i && m.second == 0; }) == mensaje_cv[j].size() - 1) {
+                    // Se envía un mensaje de 0 a i
                     mensaje_vc[i][j] = 0;
+                    c_estimado[j] = 0;
                 }
-                c_estimado[j] = 0;
             }
         }
 
@@ -137,6 +136,7 @@ int corregir_archivo(const std::string_view inputFileName,
     int corregidos = 0;
     int sin_error = 0;
     int iters_totales = 0;
+    int iters_decodificacion = 0;  
 
     while(inputFile.read(buffer.data(),n)){
         std::streamsize bytes_read = inputFile.gcount();
@@ -150,7 +150,7 @@ int corregir_archivo(const std::string_view inputFileName,
         
         tuple<vector<unsigned char>,bool,int> decod = ldpc_decode_unanimity(H_rows,H_cols,bloque,max_iter);
         if (get<1>(decod)){
-            if (get<2>(decod) == 0){
+            if (get<2>(decod) == -1){
                 sin_error++;
             } else {
                 corregidos++;
@@ -160,23 +160,29 @@ int corregir_archivo(const std::string_view inputFileName,
             errores++;
         }
 
-        iters_totales += get<2>(decod);
+
+        int tmp = get<2>(decod);
+        iters_totales += tmp;
+        if (tmp != max_iter && tmp != -1){
+            iters_decodificacion += tmp;
+        }
 
         // Imprimir cada 1000 palabras procesadas
-        if (++total % 100 == 0) {
-            std::cout << "Palabras procesadas: " << total << std::endl;
-            std::cout << "Palabras que no se pudieron corregir: " << errores << std::endl;
-            std::cout << "Palabras corregidas: " << corregidos << std::endl;
-            std::cout << "Palabras sin error: " << sin_error << std::endl;
-            std::cout << "Tasa de error: " << (float)errores/(float)total << std::endl << std::endl;
-            std::cout << "Iters promedio: " << (float)iters_totales/(float)total << std::endl;
-        }
+        // if (++total % 100 == 0) {
+        //     std::cout << "Palabras procesadas: " << total << std::endl;
+        //     std::cout << "Palabras que no se pudieron corregir: " << errores << std::endl;
+        //     std::cout << "Palabras corregidas: " << corregidos << std::endl;
+        //     std::cout << "Palabras sin error: " << sin_error << std::endl;
+        //     std::cout << "Tasa de error: " << (float)errores/(float)total << std::endl << std::endl;
+        //     std::cout << "Iters promedio: " << (float)iters_totales/(float)total << std::endl;
+        // }
+        
         /*-------------------------------------------------------------------------*/
     
         // Escribir la palabra decodificada en archivo de salida
         bloque_deco = get<0>(decod);
         outputFile.write(reinterpret_cast<const char*>(bloque_deco.data()),n);
-
+        total++;
 
     }
     std::cout << "Decodificación finalizada" << std::endl;
@@ -184,8 +190,9 @@ int corregir_archivo(const std::string_view inputFileName,
     std::cout << "Palabras que no se pudieron corregir: " << errores << std::endl;
     std::cout << "Palabras corregidas: " << corregidos << std::endl;
     std::cout << "Palabras sin error: " << sin_error << std::endl;
-    std::cout << "Tasa de error: " << (float)errores/(float)total << std::endl << std::endl;
+    std::cout << "Tasa de error: " << (float)errores/(float)total << std::endl;
     std::cout << "Iters promedio: " << (float)iters_totales/(float)total << std::endl;
+    std::cout << "Iters promedio de decodificación: " << (float)iters_decodificacion/(float)corregidos << std::endl;
 
     outputFile.close();
     inputFile.close();

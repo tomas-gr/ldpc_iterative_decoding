@@ -1,0 +1,8 @@
+# Ignore all CSV files
+*.csv
+
+# Ignore all images in the figures directory
+figures/*.png
+
+# Ignore all messages files
+*.dat
