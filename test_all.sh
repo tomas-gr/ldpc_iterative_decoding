@@ -4,7 +4,7 @@
 PROBABILITIES=(0.05 0.06 0.07 0.08 0.09 0.1 0.11 0.12)
 MAX_ITERS=(10 20 30 50)
 FILE_LENGTH=32000000
-SEED=42  # Change if you need different randomness
+SEED=42 
 OUTPUT_CSV="test_results.csv"
 
 # Initialize CSV file
@@ -28,12 +28,8 @@ for P in "${PROBABILITIES[@]}"; do
         AVG_ITERS=$(echo "$OUTPUT" | grep "Iters promedio:" | awk '{print $3}')
         AVG_ITERS_DECOD=$(echo "$OUTPUT" | grep "decodificación:" | awk '{print $5}')
                 
-        # OUTPUT=$(./ldpc_decode -i $INPUT_FILE -o $OUTPUT_FILE -n $ITER | grep "Tiempo" | awk '{print $3}')
-        # AVG_ITERS=$(ldpc_Utils/diffblock -z -n 1600 -m 8 $OUTPUT_FILE | grep "Iters" | awk '{print $}')
-
         # Run diffblock and extract block error rate
         ERROR_RATE=$(ldpc_Utils/diffblock -z -n 1600 -m 8 $OUTPUT_FILE | grep "Error rates" | awk '{print $8}')
-
 
         # Store results in CSV
         echo "$P,$ITER,$ERROR_RATE,$TIME,$AVG_ITERS,$AVG_ITERS_DECOD" >> $OUTPUT_CSV
