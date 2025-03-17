@@ -6,3 +6,11 @@ figures/*.png
 
 # Ignore all messages files
 *.dat
+
+# Ignore all test files
+test_files/*.dat
+*.enc
+
+# Ignore all compiled files
+*.o
+ldpc_decode
