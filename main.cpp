@@ -9,7 +9,6 @@
 #include "src/H6.c"
 using namespace std;
 
-
 int main(int argc, char* argv[]) {
 
     int j = 3;
@@ -18,6 +17,7 @@ int main(int argc, char* argv[]) {
     int n = 1600;
     int r = 1200;
     int max_iter = 1;
+    bool use_multiple_cpus = false;
 
     string file_in;
     string file_out;
@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
     convertirADispersa(parityCheck,H_rows,H_cols);
 
     int opt;
-    while ((opt = getopt(argc, argv, "i:o:n:")) != -1) {
+    while ((opt = getopt(argc, argv, "i:o:n:c")) != -1) {
         switch (opt) {
         case 'i':
             file_in = optarg;
@@ -49,27 +49,30 @@ int main(int argc, char* argv[]) {
                 return 1;
             }
             break;
+        case 'c':
+            use_multiple_cpus = true;
+            break;
         default:
-            cerr << "Uso correcto: ldpc_decode -i <file_in> -o <file_out> -n <max_iter>\n";
+            cerr << "Uso correcto: ldpc_decode -i <file_in> -o <file_out> -n <max_iter> [-c]\n";
             return 1;
         }
     }
 
     if (optind < argc) {
-        cerr << "Uso correcto: ldpc_decode -i <file_in> -o <file_out> -n <max_iter>\n";
+        cerr << "Uso correcto: ldpc_decode -i <file_in> -o <file_out> -n <max_iter> [-c]\n";
         return 1;
     }
 
     if (file_in.empty() || file_out.empty()) {
         cerr << "Error: Faltan argumentos.\n";
-        cerr << "Uso correcto: ldpc_decode -i <file_in> -o <file_out> -n <max_iter>\n";
+        cerr << "Uso correcto: ldpc_decode -i <file_in> -o <file_out> -n <max_iter> [-c]\n";
         return 1;
     }
 
     std::cout << std::endl << "Comenzando decodificacion" << std::endl << std::endl;
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    corregir_archivo(file_in,file_out,H_rows,H_cols,max_iter);
+    corregir_archivo(file_in,file_out,H_rows,H_cols,max_iter,use_multiple_cpus);
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
     std::cout << "Tiempo = " << std::chrono::duration_cast<std::chrono::seconds>(end - begin).count() << " [s] " << std::chrono::duration_cast<std::chrono::minutes>(end - begin).count() << " [m]" << std::endl;

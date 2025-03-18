@@ -31,6 +31,8 @@ bool chequeoParidad(const MatrizDispersa &H_rows, const vector<unsigned char> c_
 }
 
 
+#include <future>
+
 tuple<vector<unsigned char>, bool, int> ldpc_decode_unanimity(const MatrizDispersa &H_rows,
                                                          const MatrizDispersa &H_cols,
                                                          const vector<unsigned char> &y,
@@ -108,7 +110,8 @@ int corregir_archivo(const std::string_view inputFileName,
                     const std::string_view outputFileName,
                     MatrizDispersa H_rows,
                     MatrizDispersa H_cols, 
-                    int max_iter) {
+                    int max_iter,
+                    bool use_multiple_cpus) {
     
     int n = H_cols.size(); 
 
@@ -136,7 +139,9 @@ int corregir_archivo(const std::string_view inputFileName,
     int corregidos = 0;
     int sin_error = 0;
     int iters_totales = 0;
-    int iters_decodificacion = 0;  
+    int iters_decodificacion = 0;
+
+    std::vector<std::future<tuple<vector<unsigned char>, bool, int>>> futures;
 
     while(inputFile.read(buffer.data(),n)){
         std::streamsize bytes_read = inputFile.gcount();
@@ -144,11 +149,16 @@ int corregir_archivo(const std::string_view inputFileName,
             bloque[i] = static_cast<unsigned char>(buffer[i]);
         }
 
-        /*------------------------------------------------------------------------*/
-            // DECODIFICACION
-        
-        
-        tuple<vector<unsigned char>,bool,int> decod = ldpc_decode_unanimity(H_rows,H_cols,bloque,max_iter);
+        if (use_multiple_cpus) {
+            futures.push_back(std::async(std::launch::async, ldpc_decode_unanimity, H_rows, H_cols, bloque, max_iter));
+        } else {
+            futures.push_back(std::async(std::launch::deferred, ldpc_decode_unanimity, H_rows, H_cols, bloque, max_iter));
+        }
+        total++;
+    }
+
+    for (int i = 0; i < total; ++i) {
+        auto decod = futures[i].get();
         if (get<1>(decod)){
             if (get<2>(decod) == -1){
                 sin_error++;
@@ -160,31 +170,17 @@ int corregir_archivo(const std::string_view inputFileName,
             errores++;
         }
 
-
         int tmp = get<2>(decod);
         iters_totales += tmp;
         if (tmp != max_iter && tmp != -1){
             iters_decodificacion += tmp;
         }
 
-        // Imprimir cada 1000 palabras procesadas
-        // if (++total % 100 == 0) {
-        //     std::cout << "Palabras procesadas: " << total << std::endl;
-        //     std::cout << "Palabras que no se pudieron corregir: " << errores << std::endl;
-        //     std::cout << "Palabras corregidas: " << corregidos << std::endl;
-        //     std::cout << "Palabras sin error: " << sin_error << std::endl;
-        //     std::cout << "Tasa de error: " << (float)errores/(float)total << std::endl << std::endl;
-        //     std::cout << "Iters promedio: " << (float)iters_totales/(float)total << std::endl;
-        // }
-        
-        /*-------------------------------------------------------------------------*/
-    
         // Escribir la palabra decodificada en archivo de salida
         bloque_deco = get<0>(decod);
         outputFile.write(reinterpret_cast<const char*>(bloque_deco.data()),n);
-        total++;
-
     }
+
     std::cout << "Decodificación finalizada" << std::endl;
     std::cout << "Palabras procesadas: " << total << std::endl;
     std::cout << "Palabras que no se pudieron corregir: " << errores << std::endl;
